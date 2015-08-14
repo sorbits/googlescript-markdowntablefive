@@ -36,21 +36,23 @@
 var MarkdownTableMaker = function () {
 
   // parts
-  const _borderPipe = '|',
+  const BORDER_PIPE = '|',
 
     // Code solution based on info found here and here:
     // https://help.github.com/articles/github-flavored-markdown/#tables
     // https://github.com/adam-p/markdown-here/wiki/Markdown-Cheatsheet#tables
-    _tableColumnGeneral = ' ------ |',
-    _tableColumnLeft = ' :------ |',
-    _tableColumnCenter = ' :------: |',
-    _tableColumnRight = ' ------: |',
+    TABLE_COL_GENERAL = ' ------ |',
+    TABLE_COL_CENTER = ' :------: |',
+    TABLE_COL_RIGHT = ' ------: |',
 
     // space-space-pipe
-    _tableCellEmpty = '  |',
+    TABLE_CELL_EMPTY = '  |',
 
     // CRLF-pipe-space
-    _tableNewRow = '\r\n| ';
+    TABLE_ROW_NEW = '\r\n| ',
+
+    TABLE_EMPTY_RANGE = TABLE_ROW_NEW + '  |'
+      + TABLE_ROW_NEW + TABLE_COL_GENERAL;
 
 
   var _derp = 'derp',
@@ -60,7 +62,7 @@ var MarkdownTableMaker = function () {
     _numColumns = 0,
 
     // flag to crop input Range to last rows and/or columns with content
-    _cropInputRange = false,
+    _cropInputRange = true,
 
     // flag to force Markdown hyperlinks in strange places
     _forceHyperlinks = false,
@@ -79,12 +81,8 @@ var MarkdownTableMaker = function () {
     _cellFormulas = [];
 
   // input-output
-  var _markdown = '',
+  var _markdown = TABLE_EMPTY_RANGE,
     _range = {};
-
-  // let's go!
-  _setRange(_cropSheetAsRange());
-
 
 
   // sets the range for this object
@@ -145,10 +143,9 @@ var MarkdownTableMaker = function () {
   function _convert() {
 
     if(_range.isBlank()) {
-      _range = _cropSheetAsRange();
-      if(_range) {
-        _ready = true;
-      }
+      _markdown = TABLE_EMPTY_RANGE;
+      _ready = true;
+      return false;
     }
 
     _getMetaData();
@@ -164,7 +161,7 @@ var MarkdownTableMaker = function () {
 
     for (var i = 1; i <= _numRows; i++) {
 
-      output += _tableNewRow;
+      output += TABLE_ROW_NEW;
 
       for (var j = 1; j <= _numColumns; j++) {
 
@@ -217,9 +214,9 @@ var MarkdownTableMaker = function () {
             faceValue = '[' + faceValue + '](' + currentValue +')';
           }
 
-          output += ' ' +  faceValue + ' ' + _borderPipe;
+          output += ' ' +  faceValue + ' ' + BORDER_PIPE;
         } else {
-          output += _tableCellEmpty;
+          output += TABLE_CELL_EMPTY;
         }
 
         // reset formatting each time
@@ -232,20 +229,20 @@ var MarkdownTableMaker = function () {
 
       // table column alignment
       if(i < 2) {
-        output += _tableNewRow;
+        output += TABLE_ROW_NEW;
         for (var k = 1; k <= _numColumns; k++) {
           switch(_cellAlignments[i-1][k-1]) {
             case 'center':
-              output += _tableColumnCenter;
+              output += TABLE_COL_CENTER;
               break;
             case 'right':
-              output += _tableColumnRight;
+              output += TABLE_COL_RIGHT;
               break;
             case 'left':
               output += _tableColumnLeft;
               break;
             default:
-              output += _tableColumnGeneral;
+              output += TABLE_COL_GENERAL;
               break;
           }
         }
@@ -350,6 +347,7 @@ var MarkdownTableMaker = function () {
 
     /**
      * Sets spreadsheet Range of values.
+     * @param Range range
      * @return this object
      */
     setRange: function(range) {
@@ -358,8 +356,18 @@ var MarkdownTableMaker = function () {
     },
 
     /**
+     * Sets entire spreadsheet as the Range
+     * @return this object
+     */
+    setSheetAsRange: function() {
+      _setRange(_cropSheetAsRange());
+      return this;
+    },
+
+    /**
      * EXPERIMENTAL *
      * Sets flag to crop input Range.
+     * @param boolean enabled
      * @return this object
      */
     setCropInputRangeEnabled: function(enabled) {
@@ -379,6 +387,7 @@ var MarkdownTableMaker = function () {
     /**
      * EXPERIMENTAL *
      * Sets flag to force Markdown hyperlinks in strange places.
+     * @param boolean enabled
      * @return this object
      */
     setForceHyperlinksEnabled: function(enabled) {
