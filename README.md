@@ -6,6 +6,6 @@
   + MarkdownTableMaker();
   + toString() : string
   + getMarkdown() : string
-  + getRange() : string[][]
+  + getRange() : Range
   + setRange(Range) : MarkdownTableMaker
 ```
