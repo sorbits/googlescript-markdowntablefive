@@ -27,8 +27,8 @@
 
 /**
  * name     : MarkdownTableMakerFive.gs
- * version  : 1
- * updated  : 2015-08-14
+ * version  : 3
+ * updated  : 2015-09-02
  * license  : http://unlicense.org/ The Unlicense
  * git      : https://github.com/pffy/googlescript-markdowntablefive
  *
@@ -44,14 +44,14 @@ var MarkdownTableMaker = function () {
     TABLE_COL_GENERAL = ' ------ |',
     TABLE_COL_CENTER = ' :------: |',
     TABLE_COL_RIGHT = ' ------: |',
-
+      
     // space-space-pipe
     TABLE_CELL_EMPTY = '  |',
 
     // CRLF-pipe-space
     TABLE_ROW_NEW = '\r\n| ',
-
-    TABLE_EMPTY_RANGE = TABLE_ROW_NEW + '  |'
+      
+    TABLE_EMPTY_RANGE = TABLE_ROW_NEW + '  |' 
       + TABLE_ROW_NEW + TABLE_COL_GENERAL;
 
 
@@ -62,7 +62,7 @@ var MarkdownTableMaker = function () {
     _numColumns = 0,
 
     // flag to crop input Range to last rows and/or columns with content
-    _cropInputRange = true,
+    _cropInputRange = false,
 
     // flag to force Markdown hyperlinks in strange places
     _forceHyperlinks = false,
@@ -195,6 +195,13 @@ var MarkdownTableMaker = function () {
 
         // add a cell value OR add bupkis
         if(currentValue) {
+          
+          // for strings, converts carriage returns and newlines to BR html tag
+          if(typeof currentValue === 'string') {
+            currentValue = currentValue.replace((new RegExp('\\r', 'g')), '<br/>');
+            currentValue = currentValue.replace((new RegExp('\\n', 'g')), '<br/>');            
+          }
+              
           faceValue = textFormat + currentValue + textFormatClose;
 
           // cell formulas (optional)
@@ -347,7 +354,6 @@ var MarkdownTableMaker = function () {
 
     /**
      * Sets spreadsheet Range of values.
-     * @param Range range
      * @return this object
      */
     setRange: function(range) {
@@ -359,15 +365,14 @@ var MarkdownTableMaker = function () {
      * Sets entire spreadsheet as the Range
      * @return this object
      */
-    setSheetAsRange: function() {
+    setSheetAsRange: function(range) {
       _setRange(_cropSheetAsRange());
       return this;
-    },
+    }, 
 
     /**
      * EXPERIMENTAL *
      * Sets flag to crop input Range.
-     * @param boolean enabled
      * @return this object
      */
     setCropInputRangeEnabled: function(enabled) {
@@ -387,7 +392,6 @@ var MarkdownTableMaker = function () {
     /**
      * EXPERIMENTAL *
      * Sets flag to force Markdown hyperlinks in strange places.
-     * @param boolean enabled
      * @return this object
      */
     setForceHyperlinksEnabled: function(enabled) {
