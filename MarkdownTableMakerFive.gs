@@ -27,8 +27,8 @@
 
 /**
  * name     : MarkdownTableMakerFive.gs
- * version  : 3
- * updated  : 2015-09-02
+ * version  : 11
+ * updated  : 2015-10-24
  * license  : http://unlicense.org/ The Unlicense
  * git      : https://github.com/pffy/googlescript-markdowntablefive
  *
@@ -44,14 +44,15 @@ var MarkdownTableMaker = function () {
     TABLE_COL_GENERAL = ' ------ |',
     TABLE_COL_CENTER = ' :------: |',
     TABLE_COL_RIGHT = ' ------: |',
-
+    TABLE_COL_LEFT = ' :------ |',      
+      
     // space-space-pipe
     TABLE_CELL_EMPTY = '  |',
 
     // CRLF-pipe-space
     TABLE_ROW_NEW = '\r\n| ',
-
-    TABLE_EMPTY_RANGE = TABLE_ROW_NEW + '  |'
+      
+    TABLE_EMPTY_RANGE = TABLE_ROW_NEW + '  |' 
       + TABLE_ROW_NEW + TABLE_COL_GENERAL;
 
 
@@ -195,13 +196,13 @@ var MarkdownTableMaker = function () {
 
         // add a cell value OR add bupkis
         if(currentValue) {
-
+          
           // for strings, converts carriage returns and newlines to BR html tag
           if(typeof currentValue === 'string') {
             currentValue = currentValue.replace((new RegExp('\\r', 'g')), '<br/>');
-            currentValue = currentValue.replace((new RegExp('\\n', 'g')), '<br/>');
+            currentValue = currentValue.replace((new RegExp('\\n', 'g')), '<br/>');            
           }
-
+              
           faceValue = textFormat + currentValue + textFormatClose;
 
           // cell formulas (optional)
@@ -246,7 +247,7 @@ var MarkdownTableMaker = function () {
               output += TABLE_COL_RIGHT;
               break;
             case 'left':
-              output += _tableColumnLeft;
+              output += TABLE_COL_LEFT;
               break;
             default:
               output += TABLE_COL_GENERAL;
@@ -368,7 +369,7 @@ var MarkdownTableMaker = function () {
     setSheetAsRange: function(range) {
       _setRange(_cropSheetAsRange());
       return this;
-    },
+    }, 
 
     /**
      * EXPERIMENTAL *
