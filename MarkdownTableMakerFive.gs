@@ -27,13 +27,32 @@
 
 /**
  * name     : MarkdownTableMakerFive.gs
- * version  : 11
- * updated  : 2015-10-24
+ * version  : 12
+ * updated  : 2015-12-22
  * license  : http://unlicense.org/ The Unlicense
  * git      : https://github.com/pffy/googlescript-markdowntablefive
  *
  */
 var MarkdownTableMaker = function () {
+
+  // monospace Google fonts: https://www.google.com/fonts
+  const MONOSPACE_FONTS = [
+    'anonymous pro',
+    'courier new',
+    'cousine',
+    'cutive mono',
+    'droid sans mono',
+    'fira mono',
+    'inconsolata',
+    'nova mono',
+    'oxygen mono',
+    'pt mono',
+    'roboto mono',
+    'share tech mono',
+    'source code pro',
+    'ubuntu mono',
+    'vt323'
+  ];
 
   // parts
   const BORDER_PIPE = '|',
@@ -44,15 +63,15 @@ var MarkdownTableMaker = function () {
     TABLE_COL_GENERAL = ' ------ |',
     TABLE_COL_CENTER = ' :------: |',
     TABLE_COL_RIGHT = ' ------: |',
-    TABLE_COL_LEFT = ' :------ |',      
-      
+    TABLE_COL_LEFT = ' :------ |',
+
     // space-space-pipe
     TABLE_CELL_EMPTY = '  |',
 
     // CRLF-pipe-space
     TABLE_ROW_NEW = '\r\n| ',
-      
-    TABLE_EMPTY_RANGE = TABLE_ROW_NEW + '  |' 
+
+    TABLE_EMPTY_RANGE = TABLE_ROW_NEW + '  |'
       + TABLE_ROW_NEW + TABLE_COL_GENERAL;
 
 
@@ -167,23 +186,23 @@ var MarkdownTableMaker = function () {
       for (var j = 1; j <= _numColumns; j++) {
 
         // strikethrough
-        if(_fontLines && (_fontLines[i-1][j-1] == 'line-through')) {
+        if(_fontLines && (_isFontLineThrough(_fontLines[i-1][j-1]))) {
           textFormat += '~~';
         }
 
         // italic
-        if(_fontStyles && (_fontStyles[i-1][j-1] == 'italic')) {
+        if(_fontStyles && (_isFontItalic(_fontStyles[i-1][j-1]))) {
           textFormat += '*';
         }
 
         // bold
-        if(_fontWeights && (_fontWeights[i-1][j-1] == 'bold')) {
+        if(_fontWeights && (_isFontBold(_fontWeights[i-1][j-1]))) {
           textFormat += '**';
         }
 
         // inline code backticks
-        if(_fontFamilies && (_fontFamilies[i-1][j-1] == 'courier new,monospace')) {
-          textFormat = '`'; // this OVERRIDES other formats
+        if(_fontFamilies && (_isFontMonospace(_fontFamilies[i-1][j-1]))) {
+          textFormat = '`'; // careful, this OVERRIDES other display formats
         }
 
         // formatting finished. add reversed string for the other bookend.
@@ -196,13 +215,18 @@ var MarkdownTableMaker = function () {
 
         // add a cell value OR add bupkis
         if(currentValue) {
-          
+
           // for strings, converts carriage returns and newlines to BR html tag
           if(typeof currentValue === 'string') {
-            currentValue = currentValue.replace((new RegExp('\\r', 'g')), '<br/>');
-            currentValue = currentValue.replace((new RegExp('\\n', 'g')), '<br/>');            
+
+            // based on code solution
+            // found here: http://stackoverflow.com/a/17320389
+            currentValue = currentValue.replace((new RegExp('\\|', 'g')), '<code>&amp;#124;</code>');
+
+            // handles the carriage return as processed by Google Sheets
+            currentValue = currentValue.replace((new RegExp('(\\r|\\n)', 'g')), '<br/>');
           }
-              
+
           faceValue = textFormat + currentValue + textFormatClose;
 
           // cell formulas (optional)
@@ -260,7 +284,49 @@ var MarkdownTableMaker = function () {
     _markdown = output;
   }
 
-  // reverse a  string
+  // returns true if string indicates font line style is line-through; false, otherwise
+  function _isFontLineThrough(str) {
+    if(str == 'line-through') {
+      return true;
+    }
+
+    return false;
+  }
+
+  // returns true if string indicates font style is italic; false, otherwise
+  function _isFontItalic(str) {
+    if(str == 'italic') {
+      return true;
+    }
+
+    return false;
+  }
+
+  // returns true if string indicates font is monospace; false, otherwise
+  function _isFontMonospace(str) {
+
+    str = str.toLowerCase();
+
+    // iterates through the a list of monospace Google fonts
+    for (var i = 0; i < MONOSPACE_FONTS.length; i++) {
+      if(str == MONOSPACE_FONTS[i]) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  // returns true if string indicates font weight is bold; false, otherwise
+  function _isFontBold(str){
+    if (str == 'bold') {
+      return true;
+    }
+
+    return false;
+  }
+
+  // reverses a string
   function _reverse(str) {
     return str.split('').reverse().join('');
   }
@@ -369,7 +435,7 @@ var MarkdownTableMaker = function () {
     setSheetAsRange: function(range) {
       _setRange(_cropSheetAsRange());
       return this;
-    }, 
+    },
 
     /**
      * EXPERIMENTAL *
