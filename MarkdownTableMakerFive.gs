@@ -27,8 +27,8 @@
 
 /**
  * name     : MarkdownTableMakerFive.gs
- * version  : 12
- * updated  : 2015-12-22
+ * version  : 15
+ * updated  : 2016-08-31
  * license  : http://unlicense.org/ The Unlicense
  * git      : https://github.com/pffy/googlescript-markdowntablefive
  *
@@ -44,6 +44,7 @@ var MarkdownTableMaker = function () {
     'droid sans mono',
     'fira mono',
     'inconsolata',
+    'monospace',
     'nova mono',
     'oxygen mono',
     'pt mono',
@@ -232,6 +233,7 @@ var MarkdownTableMaker = function () {
           // cell formulas (optional)
           if(_cellFormulas) {
             currentFormula = _cellFormulas[i-1][j-1];
+            currentFormula = _reduceQuotes(currentFormula);
             if(_isValidHyperlink(currentFormula)) {
               var url = _getHyperlinkUrl(currentFormula);
               if( (url != currentValue)) {
@@ -360,8 +362,12 @@ var MarkdownTableMaker = function () {
   // does not process hyperlink with cell references
   // processes hyperlinks with url and title as strings
   function _isValidHyperlink(str) {
-    // todo: add validation for URL with cell references (or the negative of that)
     return ((str.indexOf('=HYPERLINK') == 0 ) && (str.indexOf('","') > 0 )) ? true : false;
+  }
+
+  function _reduceQuotes(str) {
+    // cleans quoted input
+    return str.replace((new RegExp('(\"{2,})', 'g')), '"');
   }
 
   // looks like URL scheme
