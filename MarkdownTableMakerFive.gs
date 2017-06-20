@@ -27,8 +27,8 @@
 
 /**
  * name     : MarkdownTableMakerFive.gs
- * version  : 15
- * updated  : 2016-08-31
+ * version  : 16
+ * updated  : 2017-06-20
  * license  : http://unlicense.org/ The Unlicense
  * git      : https://github.com/pffy/googlescript-markdowntablefive
  *
@@ -55,51 +55,18 @@ var MarkdownTableMaker = function () {
     'vt323'
   ];
 
-  // parts
-  const BORDER_PIPE = '|',
-
-    // Code solution based on info found here and here:
-    // https://help.github.com/articles/github-flavored-markdown/#tables
-    // https://github.com/adam-p/markdown-here/wiki/Markdown-Cheatsheet#tables
-    TABLE_COL_GENERAL = ' ------ |',
-    TABLE_COL_CENTER = ' :------: |',
-    TABLE_COL_RIGHT = ' ------: |',
-    TABLE_COL_LEFT = ' :------ |',
-
-    // space-space-pipe
-    TABLE_CELL_EMPTY = '  |',
-
-    // CRLF-pipe-space
-    TABLE_ROW_NEW = '\r\n| ',
-
-    TABLE_EMPTY_RANGE = TABLE_ROW_NEW + '  |'
-      + TABLE_ROW_NEW + TABLE_COL_GENERAL;
-
+  // Code solution based on info found here and here:
+  // https://help.github.com/articles/github-flavored-markdown/#tables
+  // https://github.com/adam-p/markdown-here/wiki/Markdown-Cheatsheet#tables
+  const TABLE_EMPTY_RANGE = '|     |\r\n| --- |';
 
   var _derp = 'derp',
-
-    // rows and columns
-    _numRows = 0,
-    _numColumns = 0,
 
     // flag to crop input Range to last rows and/or columns with content
     _cropInputRange = false,
 
     // flag to force Markdown hyperlinks in strange places
-    _forceHyperlinks = false,
-
-    // font strikethrough, italic, and bold
-    _fontStyles = [],
-    _fontWeights = [],
-    _fontLines = [],
-
-    // font typefaces
-    _fontFamilies = [],
-
-    // cell attributes
-    _cellValues = [],
-    _cellAlignments = [],
-    _cellFormulas = [];
+    _forceHyperlinks = false;
 
   // input-output
   var _markdown = TABLE_EMPTY_RANGE,
@@ -169,163 +136,96 @@ var MarkdownTableMaker = function () {
       return false;
     }
 
-    _getMetaData();
+    var temp = [];
 
-    var output = '', // an accumulator
-
-        // iterative-storage
-        textFormat = '',
-        textFormatClose = '',
-        currentValue = '',
-        faceValue = '',
-        currentFormula = '';
-
-    for (var i = 1; i <= _numRows; i++) {
-
-      output += TABLE_ROW_NEW;
-
-      for (var j = 1; j <= _numColumns; j++) {
-
-        // strikethrough
-        if(_fontLines && (_isFontLineThrough(_fontLines[i-1][j-1]))) {
-          textFormat += '~~';
-        }
-
-        // italic
-        if(_fontStyles && (_isFontItalic(_fontStyles[i-1][j-1]))) {
-          textFormat += '*';
-        }
-
-        // bold
-        if(_fontWeights && (_isFontBold(_fontWeights[i-1][j-1]))) {
-          textFormat += '**';
-        }
-
-        // inline code backticks
-        if(_fontFamilies && (_isFontMonospace(_fontFamilies[i-1][j-1]))) {
-          textFormat = '`'; // careful, this OVERRIDES other display formats
-        }
-
-        // formatting finished. add reversed string for the other bookend.
-        textFormatClose = _reverse(textFormat);
-
-        // cell values
-        if(_cellValues) {
-          currentValue = _cellValues[i-1][j-1];
-        }
-
-        // add a cell value OR add bupkis
-        if(currentValue) {
-
-          // for strings, converts carriage returns and newlines to BR html tag
-          if(typeof currentValue === 'string') {
-
-            // based on code solution
-            // found here: http://stackoverflow.com/a/17320389
-            currentValue = currentValue.replace((new RegExp('\\|', 'g')), '<code>&amp;#124;</code>');
-
-            // handles the carriage return as processed by Google Sheets
-            currentValue = currentValue.replace((new RegExp('(\\r|\\n)', 'g')), '<br/>');
-          }
-
-          faceValue = textFormat + currentValue + textFormatClose;
-
-          // cell formulas (optional)
-          if(_cellFormulas) {
-            currentFormula = _cellFormulas[i-1][j-1];
-            currentFormula = _reduceQuotes(currentFormula);
-            if(_isValidHyperlink(currentFormula)) {
-              var url = _getHyperlinkUrl(currentFormula);
-              if( (url != currentValue)) {
-                 var title = textFormat + currentValue + textFormatClose;
-                 faceValue = '[' + title + '](' + url +')';
-              }
-            }
-          }
-
-          // EXPERIMENTAL
-          if(_hasUrlScheme(currentValue) && _forceHyperlinks) {
-            faceValue = '[' + faceValue + '](' + currentValue +')';
-          }
-
-          output += ' ' +  faceValue + ' ' + BORDER_PIPE;
-        } else {
-          output += TABLE_CELL_EMPTY;
-        }
-
-        // reset formatting each time
-        textFormat = '';
-        textFormatClose = '';
-        currentValue = '';
-        faceValue = '';
-        currentFormula = '';
+    for(col = 0; col < _range.getNumColumns(); col++) {
+      var cells = [], align = [];
+      for(row = 0; row < _range.getNumRows(); row++) {
+        var cell = _range.offset(row, col);
+        cells.push(_cellToMarkdown(cell, row == 0));
+        align.push(cell.getHorizontalAlignment().replace(/^general-/, ''));
       }
 
-      // table column alignment
-      if(i < 2) {
-        output += TABLE_ROW_NEW;
-        for (var k = 1; k <= _numColumns; k++) {
-          switch(_cellAlignments[i-1][k-1]) {
-            case 'center':
-              output += TABLE_COL_CENTER;
-              break;
-            case 'right':
-              output += TABLE_COL_RIGHT;
-              break;
-            case 'left':
-              output += TABLE_COL_LEFT;
-              break;
-            default:
-              output += TABLE_COL_GENERAL;
-              break;
-          }
-        }
+      // pad all cells to be the same width
+      var width = cells.reduce(function (w, str) { return Math.max(str.length, w); }, 0);
+      cells = cells.map(function (str, idx) {
+        var padSize = width - str.length;
+        var padRight = align[idx] == 'left' ? padSize : (align[idx] == 'center' ? Math.round(padSize / 2) : 0);
+        return Array(padSize-padRight+1).join(' ') + str + Array(padRight+1).join(' ');
+      });
+
+      // insert table header/body divider if we have more than one row
+      if(cells.length > 1) {
+        // find the alignment of the column by majority, ignoring header row
+        var leftCount   = align.filter(function (str, idx) { return idx != 0 && str == 'left';   }).length;
+        var rightCount  = align.filter(function (str, idx) { return idx != 0 && str == 'right';  }).length;
+        var centerCount = align.filter(function (str, idx) { return idx != 0 && str == 'center'; }).length;
+
+        var left  = rightCount < Math.max(leftCount, centerCount)  ? ':' : '-';
+        var right = leftCount <= Math.max(rightCount, centerCount) ? ':' : '-';
+        cells.splice(1, 0, left + Array(width-2+1).join('-') + right);
+      }
+
+      temp.push(cells);
+    }
+
+    // Transpose temp array: col × row → row × col and turn into markdown
+    temp = temp[0].map(function (_, c) { return temp.map(function (r) { return r[c]; }); });
+    _markdown = temp.map(function (row) { return '| ' + row.join(' | ') + ' |'; }).join('\r\n');
+  }
+
+  // creates markdown for a cell
+  function _cellToMarkdown(cell, isHeader) {
+    var displayValue = cell.getDisplayValue();
+    if(displayValue.length == 0) {
+      return '';
+    }
+
+    var textFormat = '';
+
+    if(cell.getFontLine() == 'line-through') {
+      textFormat += '~~';
+    }
+
+    // table headers are styled by default, so skip explicit bold and italic
+    if(isHeader == false) {
+      if(cell.getFontStyle() == 'italic') {
+        textFormat += '*';
+      }
+
+      if(cell.getFontWeight() == 'bold') {
+        textFormat += '**';
       }
     }
 
-    _markdown = output;
-  }
+    var textFormatOut = _reverse(textFormat);
+    var orgDisplayValue = displayValue;
 
-  // returns true if string indicates font line style is line-through; false, otherwise
-  function _isFontLineThrough(str) {
-    if(str == 'line-through') {
-      return true;
+    // EXPERIMENTAL
+    if(displayValue.search(/^https?:\/\//) == 0 && _forceHyperlinks) {
+      displayValue = '<' + displayValue + '>';
     }
+    else {
+      displayValue = displayValue.replace(/[\r\n]/g, '<br/>');
+      displayValue = displayValue.replace(/\|/g, '&#124;');
 
-    return false;
-  }
-
-  // returns true if string indicates font style is italic; false, otherwise
-  function _isFontItalic(str) {
-    if(str == 'italic') {
-      return true;
-    }
-
-    return false;
-  }
-
-  // returns true if string indicates font is monospace; false, otherwise
-  function _isFontMonospace(str) {
-
-    str = str.toLowerCase();
-
-    // iterates through the a list of monospace Google fonts
-    for (var i = 0; i < MONOSPACE_FONTS.length; i++) {
-      if(str == MONOSPACE_FONTS[i]) {
-        return true;
+      var url = cell.getFormula().match(/^=HYPERLINK\("([^"]+)", .*\)/i);
+      if(url && url.length == 2) {
+        displayValue = '[' + displayValue + '](' + url[1] +')';
       }
     }
 
-    return false;
-  }
-
-  // returns true if string indicates font weight is bold; false, otherwise
-  function _isFontBold(str){
-    if (str == 'bold') {
-      return true;
+    if(MONOSPACE_FONTS.indexOf(cell.getFontFamily().toLowerCase()) != -1) {
+      // we can only treat cell as raw if we did not insert special markup
+      if(displayValue == orgDisplayValue) {
+        displayValue = '`' + displayValue + '`';
+      }
+      else {
+        displayValue = '<code>' + displayValue + '</code>';
+      }
     }
 
-    return false;
+    return textFormat + displayValue + textFormatOut;
   }
 
   // reverses a string
@@ -339,59 +239,6 @@ var MarkdownTableMaker = function () {
     var lastRow = sheet.getLastRow(); // method looks for content
     var lastColumn = sheet.getLastColumn(); // method looks for content
     return sheet.getRange(1, 1, lastRow, lastColumn);
-  }
-
-  // accumulate layered meta data
-  function _getMetaData() {
-
-    _numRows = _range.getNumRows();
-    _numColumns = _range.getNumColumns();
-
-    _fontStyles = _range.getFontStyles();
-    _fontWeights = _range.getFontWeights();
-    _fontLines = _range.getFontLines();
-
-    _fontFamilies = _range.getFontFamilies();
-
-    _cellFormulas = _range.getFormulas();
-    _cellAlignments = _range.getHorizontalAlignments();
-    _cellValues = _range.getValues();
-  }
-
-  // detects HYPERLINK formula
-  // does not process hyperlink with cell references
-  // processes hyperlinks with url and title as strings
-  function _isValidHyperlink(str) {
-    return ((str.indexOf('=HYPERLINK') == 0 ) && (str.indexOf('","') > 0 )) ? true : false;
-  }
-
-  function _reduceQuotes(str) {
-    // cleans quoted input
-    return str.replace((new RegExp('(\"{2,})', 'g')), '"');
-  }
-
-  // looks like URL scheme
-  function _hasUrlScheme(str) {
-
-    str = '' + str;
-    const URL_SCHEMES = [
-      'http://',
-      'https://'
-    ];
-
-    for(var s in URL_SCHEMES) {
-      if(str.indexOf(URL_SCHEMES[s]) == 0) {
-        return true;
-      }
-     return false;
-    }
-  }
-
-  // extracts HYPERLINK url
-  function _getHyperlinkUrl(str) {
-    var arr = JSON.parse('[' + str.slice(11, -1) + ']');
-    var url = arr[0];
-    return url;
   }
 
   // builds Markdown hyperlink
