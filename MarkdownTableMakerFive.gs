@@ -241,11 +241,6 @@ var MarkdownTableMaker = function () {
     return sheet.getRange(1, 1, lastRow, lastColumn);
   }
 
-  // builds Markdown hyperlink
-  function _createHyperlinkMarkdown(title, url) {
-    return '[' + title + '](' + url +')';
-  }
-
   return {
 
     /**
