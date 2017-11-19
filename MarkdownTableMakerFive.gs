@@ -127,6 +127,26 @@ var MarkdownTableMaker = function () {
     return SpreadsheetApp.getActive().getActiveRange();
   }
 
+  function getIndexesOfFilteredRows(ssId, sheetId) {
+    var hiddenRows = [];
+
+    // limit what’s returned from the API
+    var fields = "sheets(data(rowMetadata(hiddenByFilter)),properties/sheetId)";
+    var sheets = Sheets.Spreadsheets.get(ssId, {fields: fields}).sheets;  
+
+    for(var i = 0; i < sheets.length; i++) {
+      if(sheets[i].properties.sheetId == sheetId) {
+        var data = sheets[i].data;
+        var rows = data[0].rowMetadata;
+        for(var j = 0; j < rows.length; j++) {
+          if(rows[j].hiddenByFilter)
+            hiddenRows.push(j);
+        }
+      }
+    }
+    return hiddenRows;
+  }
+
   // converts Range object into Markdown string
   function _convert() {
 
@@ -138,9 +158,21 @@ var MarkdownTableMaker = function () {
 
     var temp = [];
 
+    var sheet = _range.getSheet();
+    var ss = sheet.getParent();
+    var hiddenRowIndexes = getIndexesOfFilteredRows(ss.getId(), sheet.getSheetId());
+
     for(col = 0; col < _range.getNumColumns(); col++) {
+      var hidden = hiddenRowIndexes.slice();
+      var hiddenRowIndex = hidden.count == 0 ? -1 : hidden.shift();
+
       var cells = [], align = [];
       for(row = 0; row < _range.getNumRows(); row++) {
+        if(hiddenRowIndex == row + _range.getRow()-1) {
+          hiddenRowIndex = hidden.count == 0 ? -1 : hidden.shift();
+          continue;
+        }
+
         var cell = _range.offset(row, col);
         cells.push(_cellToMarkdown(cell, row == 0));
         align.push(cell.getHorizontalAlignment().replace(/^general-/, ''));
